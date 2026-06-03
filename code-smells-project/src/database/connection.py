@@ -1,16 +1,27 @@
 import sqlite3
-import os
+from src.config.settings import Config
 
-db_connection = None
-db_path = "loja.db"
+class Database:
+    _instance = None
 
-def get_db():
-    global db_connection
-    if db_connection is None:
-        db_connection = sqlite3.connect(db_path, check_same_thread=False)
-        db_connection.row_factory = sqlite3.Row
-        cursor = db_connection.cursor()
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super(Database, cls).__new__(cls)
+            cls._instance.connection = None
+        return cls._instance
 
+    def get_connection(self):
+        if self.connection is None:
+            self.connection = sqlite3.connect(
+                Config.DATABASE_PATH, 
+                check_same_thread=False
+            )
+            self.connection.row_factory = sqlite3.Row
+            self._init_db()
+        return self.connection
+
+    def _init_db(self):
+        cursor = self.connection.cursor()
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS produtos (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -51,7 +62,7 @@ def get_db():
                 preco_unitario REAL
             )
         """)
-        db_connection.commit()
+        self.connection.commit()
 
         cursor.execute("SELECT COUNT(*) FROM produtos")
         if cursor.fetchone()[0] == 0:
@@ -81,6 +92,6 @@ def get_db():
                 "INSERT INTO usuarios (nome, email, senha, tipo) VALUES (?, ?, ?, ?)",
                 usuarios
             )
-            db_connection.commit()
+            self.connection.commit()
 
-    return db_connection
+db = Database()

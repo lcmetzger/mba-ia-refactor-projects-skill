@@ -1,6 +1,6 @@
 from database import db
 from datetime import datetime
-import hashlib
+from passlib.hash import argon2
 
 class User(db.Model):
     __tablename__ = 'users'
@@ -13,26 +13,27 @@ class User(db.Model):
     active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-    def to_dict(self):
-        return {
+    def to_dict(self, include_sensitive=False):
+        data = {
             'id': self.id,
             'name': self.name,
             'email': self.email,
-            'password': self.password,
             'role': self.role,
             'active': self.active,
             'created_at': str(self.created_at)
         }
+        if include_sensitive:
+            data['password'] = self.password
+        return data
 
     def set_password(self, pwd):
-
-        self.password = hashlib.md5(pwd.encode()).hexdigest()
+        self.password = argon2.hash(pwd)
 
     def check_password(self, pwd):
-        return self.password == hashlib.md5(pwd.encode()).hexdigest()
+        try:
+            return argon2.verify(pwd, self.password)
+        except:
+            return False
 
     def is_admin(self):
-        if self.role == 'admin':
-            return True
-        else:
-            return False
+        return self.role == 'admin'
